@@ -12,7 +12,7 @@ def main():
 
 def cmd_loop():
     cmd = ''
-    while cmd is not "exit":
+    while cmd != "exit":
         cmd = input('> ').lower()
         if message is "help":
             print(" add:  add a new contact")
