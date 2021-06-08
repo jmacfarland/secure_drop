@@ -4,6 +4,7 @@
 import json
 import crypt
 import getpass
+from hmac import compare_digest as compare_hash
 
 class User(object):
     def register(self):
@@ -24,13 +25,13 @@ class User(object):
                 print("Whoops, try again.")
 
     def login(self):
-        test_hash = 'setup'
-        while test_hash != self.hash:
-            test_hash = crypt.crypt(getpass.getpass(),self.salt)
-            if test_hash == self.hash:
-                print("LOGGED IN :))))")
-            else:
-                print("Whoops, try again.")
+        temp_pass = getpass.getpass()
+        if compare_hash(crypt.crypt(temp_pass,self.salt),self.hash):
+            print("LOGGED IN :))))")
+            #decrypt user key using pass
+            #blank key
+        else:
+            print("Sorry, try again.")
 
     # FILE IO
     ################################
