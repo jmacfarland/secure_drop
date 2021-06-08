@@ -1,14 +1,17 @@
 #! /usr/bin/env python3
 from user import User
+import json
 
 def main():
     u = User()
-    if not u.load_from_file():
+    try:
+        u.load_from_file()
+    except FileNotFoundError:
         #no user exists, register new
         u.register()
         u.save_to_file()
-    else:
-        u.login()
+    except json.JSONDecodeError:
+        print("Login failed.")
 
 def cmd_loop():
     cmd = ''
