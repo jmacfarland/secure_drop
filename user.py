@@ -45,7 +45,10 @@ class User(object):
         )
         key = kdf.derive(getpass.getpass().encode())
         f = Fernet(base64.urlsafe_b64encode(key))
-        return f.decrypt(base64.b64decode(data["secret"]))
+        return json.loads(
+            f.decrypt(
+                base64.b64decode(
+                    data["secret"])))
 
     # FILE IO
     ################################
@@ -56,7 +59,10 @@ class User(object):
     def load_from_file(self, fname='user.txt'):
         with open(fname, 'r') as infile:
             data = json.loads(infile.read())
-            return self.decrypt(data)
+            plain = self.decrypt(data)
+            self.fullname = plain['fullname']
+            self.email = plain['email']
+            self.unsaved_changes = False
 
     # GETTERS
     ################################
@@ -75,8 +81,5 @@ class User(object):
         })
 
 if __name__ == "__main__":
-    a = User()
-    a.register()
-    a.save_to_file()
     b = User()
     print(b.load_from_file())
