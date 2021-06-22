@@ -27,6 +27,11 @@ def cmd_loop(acct):
             print("---> list: list all online contacts")
             print("---> send: send file to contact")
             print("---> exit: exit")
+        elif cmd == "add":
+            acct.add_contact(input("Contact name: "), input("Contact email: "))
+        elif cmd == "list":
+            for c in acct.get_contacts():
+                print(c)
     acct.save_to_file()
     exit(0)
 

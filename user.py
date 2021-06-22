@@ -16,6 +16,7 @@ class User(object):
         self.fullname = input("Full Name: ")
         self.email = input("Email: ")
         self.salt = os.urandom(16)
+        self.contacts = []
         kdf = Scrypt(
             salt=self.salt,
             length=32,
@@ -26,6 +27,12 @@ class User(object):
         key = kdf.derive(getpass.getpass().encode())
         self.f = Fernet(base64.urlsafe_b64encode(key))
 
+    def add_contact(self, name, email):
+        self.contacts.append({
+            "name":name,
+            "email":email
+        })
+
     def encrypt(self):
         data = {}
 
@@ -33,7 +40,6 @@ class User(object):
             self.f.encrypt(
                 repr(self).encode())).decode()
         data["salt"] = base64.b64encode(self.salt).decode()
-        print(json.dumps(data))
         return json.dumps(data)
 
     def decrypt(self,data):
@@ -64,7 +70,7 @@ class User(object):
             plain = self.decrypt(data)
             self.fullname = plain['fullname']
             self.email = plain['email']
-            self.unsaved_changes = False
+            self.contacts = plain['contacts']
 
     # GETTERS
     ################################
@@ -74,14 +80,21 @@ class User(object):
     def get_email(self):
         return self.email
 
+    def get_contacts(self):
+        return self.contacts
+
     # UTILS
     ################################
     def __repr__(self):
         return json.dumps({
             "fullname":self.fullname,
-            "email":self.email
+            "email":self.email,
+            "contacts":self.contacts
         })
 
 if __name__ == "__main__":
     b = User()
     print(b.load_from_file())
+
+    print(repr(b))
+    
