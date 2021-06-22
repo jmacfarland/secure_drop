@@ -16,9 +16,6 @@ class User(object):
         self.fullname = input("Full Name: ")
         self.email = input("Email: ")
         self.salt = os.urandom(16)
-
-    def encrypt(self):
-        data = {}
         kdf = Scrypt(
             salt=self.salt,
             length=32,
@@ -27,26 +24,31 @@ class User(object):
             p=1,
         )
         key = kdf.derive(getpass.getpass().encode())
-        f = Fernet(base64.urlsafe_b64encode(key))
+        self.f = Fernet(base64.urlsafe_b64encode(key))
+
+    def encrypt(self):
+        data = {}
+
         data["secret"] = base64.b64encode(
-            f.encrypt(
+            self.f.encrypt(
                 repr(self).encode())).decode()
         data["salt"] = base64.b64encode(self.salt).decode()
         print(json.dumps(data))
         return json.dumps(data)
 
     def decrypt(self,data):
+        self.salt = base64.b64decode(data["salt"].encode())
         kdf = Scrypt(
-            salt=base64.b64decode(data["salt"].encode()),
+            salt=self.salt,
             length=32,
             n=2**14,
             r=8,
             p=1,
         )
         key = kdf.derive(getpass.getpass().encode())
-        f = Fernet(base64.urlsafe_b64encode(key))
+        self.f = Fernet(base64.urlsafe_b64encode(key))
         return json.loads(
-            f.decrypt(
+            self.f.decrypt(
                 base64.b64decode(
                     data["secret"])))
 

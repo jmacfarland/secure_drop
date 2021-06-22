@@ -27,9 +27,7 @@ def cmd_loop(acct):
             print("---> list: list all online contacts")
             print("---> send: send file to contact")
             print("---> exit: exit")
-    if acct.unsaved_changes:
-        if input("Save changes? (y/n): ").lower() != "n":
-            acct.save_to_file()
+    acct.save_to_file()
     exit(0)
 
 if __name__ == "__main__":
