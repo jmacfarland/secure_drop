@@ -32,6 +32,8 @@ def cmd_loop(acct):
         elif cmd == "list":
             for c in acct.get_contacts():
                 print(c)
+        elif cmd == "show":
+            print(repr(acct))
     acct.save_to_file()
     exit(0)
 
