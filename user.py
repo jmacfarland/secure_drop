@@ -71,14 +71,18 @@ class User(object):
             outfile.write(str(self.encrypt()))
 
     def load_from_file(self, fname='user.txt'):
-        with open(fname, 'r') as infile:
-            data = json.loads(infile.read())
-            plain = self.decrypt(data)
-            self.fullname = plain['fullname']
-            self.email = plain['email']
-            self.privkey = Ed25519PrivateKey.from_private_bytes(
-                base64.b64decode(plain['privkey'].encode()))
-            self.contacts = plain['contacts']
+        try:
+            with open(fname, 'r') as infile:
+                data = json.loads(infile.read())
+                plain = self.decrypt(data)
+                self.fullname = plain['fullname']
+                self.email = plain['email']
+                self.privkey = Ed25519PrivateKey.from_private_bytes(
+                    base64.b64decode(plain['privkey'].encode()))
+                self.contacts = plain['contacts']
+        except FileNotFoundError:
+            self.register()
+            self.save_to_file()
 
     # GETTERS
     ################################
@@ -90,6 +94,13 @@ class User(object):
 
     def get_contacts(self):
         return self.contacts
+
+    def get_pubkey_b64(self):
+        return base64.b64encode(
+            self.privkey.public_key().public_bytes(
+                encoding=serialization.Encoding.Raw,
+                format=serialization.PublicFormat.Raw
+            ))
 
     # UTILS
     ################################
