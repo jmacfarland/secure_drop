@@ -1,11 +1,11 @@
 #! /usr/bin/env python3
 import asyncio
-from peer import Peer
+from btpeer import BTPeer
 
-async def main():
-    p = Peer("localhost",10001)
-    message = await p.receive()
-    print("received '{0}'").format(message)
+def main():
+    p = BTPeer(5,10000)
+    p.mainloop()
+
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
