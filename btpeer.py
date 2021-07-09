@@ -7,6 +7,9 @@ import struct
 import threading
 import time
 import traceback
+import json
+
+from session import Session
 
 
 def btdebug( msg ):
@@ -45,10 +48,15 @@ class BTPeer:
 									# peers list (maybe better to use
 									# threading.RLock (reentrant))
 		self.peers = {}        # peerid ==> (host, port) mapping
+
+		self.peersessions = {} # session ID -> Session
+
 		self.shutdown = False  # used to stop the main loop
 
 		self.handlers = {
-			'MESG': self.__handle_plain_message,
+			'SESH': self.__handle_begin_session,
+			'PMSG': self.__handle_plain_message,
+			'CMSG': self.__handle_cipher_message,
 		}
 		self.router = self.simplerouter
 
@@ -57,8 +65,36 @@ class BTPeer:
 		host, port = self.peers[peerid]
 		return (peerid, host, port)
 
+	def __handle_begin_session(self, peerconn, msgdata):
+		self.__debug("Opening session with peer %s"%peerconn.id)
+		#only make new IF not exist / TTL expired? later improvement
+		self.peersessions[peerconn.id] = Session()
+		if not self.peersessions[peerconn.id].recv_pubkey(msgdata.decode()):
+			self.__debug("Open session failed")
+		peerconn.senddata('REPL', self.peersessions[peerconn.id].send_pubkey())
+
 	def __handle_plain_message(self, peerconn, msgdata):
+		#for testing purposes, should not be used due to being plaintext
 		print("Received msg: %s"%msgdata)
+
+	def __handle_cipher_message(self, peerconn, msgdata):
+		#error if no open session for peerconn.id
+		#otherwise, decrypt msgdata with session
+		plain_msg = self.peersessions["one"].recv_msg(msgdata)
+		self.__debug(plain_msg)
+
+	def send_cipher_message(self, peerid, message):
+		#encrypt message
+		msg_cipher = self.peersessions[peerid].send_msg(message)
+		#send to peer
+		self.sendtopeer(peerid, 'CMSG', msg_cipher)
+
+	def begin_session_with(self, peerid):
+		self.__debug("Sending request to open session to %s"%peerid)
+		self.peersessions[peerid] = Session()
+		resp = self.sendtopeer(peerid, 'SESH', self.peersessions[peerid].send_pubkey())
+		if not self.peersessions[peerid].recv_pubkey(resp[0][1]): #must be [0][1] to get the actual response message
+			self.__debug("Open session failed")
 
 
 	#--------------------------------------------------------------------------
@@ -96,7 +132,9 @@ class BTPeer:
 		self.__debug( 'Connected ' + str(clientsock.getpeername()) )
 
 		host, port = clientsock.getpeername()
-		peerconn = BTPeerConnection( None, host, port, clientsock, debug=False )
+		#CHANGE THIS:
+		peerid = "one"
+		peerconn = BTPeerConnection( peerid, host, port, clientsock, debug=False )
 
 		try:
 			msgtype, msgdata = peerconn.recvdata()
@@ -474,7 +512,6 @@ class BTPeerConnection:
 
 		try:
 			msg = self.__makemsg( msgtype, msgdata )
-			print(msg)
 			self.sd.write( msg )
 			self.sd.flush()
 		except KeyboardInterrupt:

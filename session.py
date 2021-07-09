@@ -86,6 +86,7 @@ class Session():
             return False
 
     def send_msg(self, msg):
+        print("DERIVED KEY: " + str(self.derived_key))
         iv = os.urandom(16)
         enc = Cipher(
             AES(self.derived_key),
@@ -112,7 +113,7 @@ class Session():
                 dec.update(msg) + dec.finalize()
             ).decode()
         )
-        print(msg_json)
+        #print(msg_json)
         return msg_json['message']
         # else:
         #    return b'Invalid signature detected! Message discarded'
