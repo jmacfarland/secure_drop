@@ -12,6 +12,7 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 #from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 import os
@@ -60,6 +61,32 @@ class User(object):
         #self._debug("Adding contact %s: %s"%(email,pubkey))
         self.contacts[email] = pubkey
 
+    def _make_encryptor_session(self):
+        key = os.urandom(32)
+        iv = os.urandom(16)
+        cipher = Cipher(algorithms.AES(key), modes.CBC(iv))
+        return (cipher.encryptor(),
+            base64.b64encode(key).decode(),
+            base64.b64encode(iv).decode())
+
+    def send_symmetric(self, encryptor, message):
+        return encryptor.update(message) + encryptor.finalize()
+
+    def _make_decryptor_session(self, key, iv):
+        cipher = Cipher(
+            algorithms.AES(
+                base64.b64decode(key.encode())
+            ),
+            modes.CBC(
+                base64.b64decode(iv.encode())
+            )
+        )
+        return cipher.decryptor()
+
+    def recv_symmetric(self, decryptor, message_cipher):
+        msg = decryptor.update(message_cipher) + decryptor.finalize()
+        return msg
+
     def sign(self, message):
         #returns signature of the message, not the message+signature
         return self.privkey.sign(
@@ -71,7 +98,7 @@ class User(object):
             hashes.SHA256()
         )
 
-    def send(self, email, message):
+    def send_asymmetric(self, email, message):
         #MESSAGE must be bytes
         key = serialization.load_pem_public_key(
             self.contacts[email],
@@ -90,9 +117,9 @@ class User(object):
             'signature':base64.b64encode(self.sign(cipher_text)).decode()
         }).encode()
 
-    def receive(self, data):
+    def recv_asymmetric(self, data):
         data = json.loads(data.decode())
-        self._debug(data)
+        #self._debug("RECV: " + str(data))
         message_cipher = base64.b64decode(data['message'].encode())
         signature = base64.b64decode(data['signature'].encode())
         message_plain = self.privkey.decrypt(
@@ -104,6 +131,10 @@ class User(object):
             )
         )
         self._debug(message_plain)
+        #TODO: vfy signature...
+        #   should include author id in message_plain json,
+        #   so can lookup author's claimed pubkey to verify
+        return message_plain
 
 
     ##############################################
