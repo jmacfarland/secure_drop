@@ -36,7 +36,7 @@ class User(object):
         self.salt = os.urandom(16)
         self.privkey = rsa.generate_private_key(
             public_exponent=65537,
-            key_size=2048,
+            key_size=4096,
             backend=default_backend()
         )
         self.contacts = {}
@@ -73,28 +73,29 @@ class User(object):
 
     def send(self, email, message):
         #MESSAGE must be bytes
-        data = json.dumps({
-            'message':base64.b64encode(message).decode(),
-            'signature':base64.b64encode(self.sign(message)).decode()
-        }).encode()
-
-        self._debug("Sending data %s to %s"%(data,email))
         key = serialization.load_pem_public_key(
             self.contacts[email],
             backend=default_backend()
         )
-        self._debug(key)
-        return key.encrypt(
-            b'afdsnfsdnfhdsfjsdhalfndasfdasbifasdnfuafdsnfsdnfhdsfjsdhalfndasfdasbifasdnfuafdsnfsdnfhdsfjsdhalfndasfdasbifasdnfuafdsnfsdnfhdsfjsdhalfndasfdasbifasdnfu',
+        cipher_text = key.encrypt(
+            message,
             padding.OAEP(
                 mgf=padding.MGF1(algorithm=hashes.SHA256()),
                 algorithm=hashes.SHA256(),
                 label=None
             )
         )
+        return json.dumps({
+            'message':base64.b64encode(cipher_text).decode(),
+            'signature':base64.b64encode(self.sign(cipher_text)).decode()
+        }).encode()
 
-    def receive(self, message_cipher):
-        return self.privkey.decrypt(
+    def receive(self, data):
+        data = json.loads(data.decode())
+        self._debug(data)
+        message_cipher = base64.b64decode(data['message'].encode())
+        signature = base64.b64decode(data['signature'].encode())
+        message_plain = self.privkey.decrypt(
             message_cipher,
             padding.OAEP(
                 mgf=padding.MGF1(algorithm=hashes.SHA256()),
@@ -102,6 +103,7 @@ class User(object):
                 label=None
             )
         )
+        self._debug(message_plain)
 
 
     ##############################################

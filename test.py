@@ -20,9 +20,9 @@ def anothertest():
     pubkey_two = two.get_pubkey_pem()
     one.add_contact("two@test.com", pubkey_two)
 
-    msg_cipher = one.send("two@test.com",b'testmessage')
+    msg = b'test'*100
+    msg_cipher = one.send("two@test.com",msg)
     msg_plain = two.receive(msg_cipher)
-    print(msg_plain)
 
 
 
