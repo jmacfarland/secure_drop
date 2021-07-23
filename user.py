@@ -4,6 +4,7 @@
 import json
 import crypt
 import getpass
+from cryptography.hazmat.primitives import padding as padding_sym
 from hmac import compare_digest as compare_hash
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
@@ -64,7 +65,7 @@ class User(object):
     def _make_encryptor_session(self):
         key = os.urandom(32)
         iv = os.urandom(16)
-        cipher = Cipher(algorithms.AES(key), modes.CBC(iv))
+        cipher = Cipher(algorithms.AES(key), modes.CFB(iv))
         return (cipher.encryptor(),
             base64.b64encode(key).decode(),
             base64.b64encode(iv).decode())
@@ -77,7 +78,7 @@ class User(object):
             algorithms.AES(
                 base64.b64decode(key.encode())
             ),
-            modes.CBC(
+            modes.CFB(
                 base64.b64decode(iv.encode())
             )
         )
