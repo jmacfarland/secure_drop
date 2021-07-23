@@ -99,6 +99,22 @@ class User(object):
             hashes.SHA256()
         )
 
+    def verify_signature(self, email, message, signature):
+        key = serialization.load_pem_public_key(
+            self.contacts[email],
+            backend=default_backend()
+        )
+        return key.verify(
+            base64.b64decode(signature),
+            message,
+            padding.PSS(
+                mgf=padding.MGF1(hashes.SHA256()),
+                salt_length=padding.PSS.MAX_LENGTH
+            ),
+            hashes.SHA256()
+        )
+
+
     def send_asymmetric(self, email, message):
         #MESSAGE must be bytes
         key = serialization.load_pem_public_key(
@@ -131,11 +147,8 @@ class User(object):
                 label=None
             )
         )
-        self._debug(message_plain)
-        #TODO: vfy signature...
-        #   should include author id in message_plain json,
-        #   so can lookup author's claimed pubkey to verify
-        return message_plain
+        #self._debug(message_plain)
+        return message_plain, signature
 
 
     ##############################################
