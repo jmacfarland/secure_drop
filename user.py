@@ -89,8 +89,8 @@ class User(object):
         return msg
 
     def sign(self, message):
-        #returns signature of the message, not the message+signature
-        return self.privkey.sign(
+        #returns signature of the message, b64e, str
+        sig = self.privkey.sign(
             message,
             padding.PSS(
                 mgf=padding.MGF1(hashes.SHA256()),
@@ -98,13 +98,14 @@ class User(object):
             ),
             hashes.SHA256()
         )
+        return base64.b64encode(sig).decode() #b64 in str format
 
     def verify_signature(self, email, message, signature):
         key = serialization.load_pem_public_key(
             self.contacts[email],
             backend=default_backend()
         )
-        return key.verify(
+        key.verify(
             base64.b64decode(signature),
             message,
             padding.PSS(
@@ -131,14 +132,13 @@ class User(object):
         )
         return json.dumps({
             'message':base64.b64encode(cipher_text).decode(),
-            'signature':base64.b64encode(self.sign(cipher_text)).decode()
+            'signature':self.sign(message) #signature is already b64
         }).encode()
 
     def recv_asymmetric(self, data):
         data = json.loads(data.decode())
         #self._debug("RECV: " + str(data))
         message_cipher = base64.b64decode(data['message'].encode())
-        signature = base64.b64decode(data['signature'].encode())
         message_plain = self.privkey.decrypt(
             message_cipher,
             padding.OAEP(
@@ -148,7 +148,7 @@ class User(object):
             )
         )
         #self._debug(message_plain)
-        return message_plain, signature
+        return message_plain, data["signature"]
 
 
     ##############################################

@@ -88,7 +88,7 @@ class EncryptionTest(unittest.TestCase):
         msg_orig = b'testmessageplsignore'
         msg_cipher = self.one.send_asymmetric("two@test.com",msg_orig)
         msg_plain, signature = self.two.recv_asymmetric(msg_cipher)
-        self.assertTrue(self.two.verify_signature("one@test.com",msg_plain, signature), "Signature verification failed")
+        self.two.verify_signature("one@test.com", msg_plain, signature)
 
 if __name__ == '__main__':
     unittest.main()
