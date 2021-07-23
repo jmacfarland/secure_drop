@@ -1,8 +1,22 @@
 #! /usr/bin/env python3
 from btpeer import BTPeer
 from user import User
-from utils import read_in_chunks
+#from utils import read_in_chunks
 import json
+import hashlib
+
+def get_digest(file_path):
+    h = hashlib.sha256()
+
+    with open(file_path, 'rb') as file:
+        while True:
+            # Reading is buffered, so we can read smaller chunks.
+            chunk = file.read(h.block_size)
+            if not chunk:
+                break
+            h.update(chunk)
+        file.close()
+    return h.hexdigest()
 
 def test():
     p = BTPeer(5, 10001,myid="one@one.com")
@@ -72,11 +86,27 @@ def test_sendfile():
     s2 = two._make_decryptor_session(data['key'], data['iv'])
 
     #########################
-
-    file = open("text/text_64k.txt", "rb")
+    testfile = "text/text_64k.txt"
+    file = open(testfile, "rb")
     plain = file.read()
+    file.close()
+    print("size of plain file:      {0}".format(len(plain)))
+    print("hash of plain file:      {0}".format(get_digest(testfile)))
     cipher = one.send_symmetric(s1, plain)
+    print("size of encrypted file:  {0}".format(len(cipher)))
+    '''
+    Thoughts on protocol:
+    - send filename, filesize, file hash in one asymm msg, which opens the prompt on the receiving end
+    - receiver send back ACK w/ symmetric key
+    - send messagelen as first (8?) bytes of symmetric stream, then
+        - client recv's messagelen
+    '''
     plain2 = two.recv_symmetric(s2, cipher)
-    print(plain2)
+    print("size of recv plain:      {0}".format(len(plain2)))
+    outfile = "text/tmp.txt"
+    out = open(outfile, "wb")
+    out.write(plain2)
+    out.close()
+    print("hash of recvd file:      {0}".format(get_digest(outfile)))
 
 test_sendfile()
