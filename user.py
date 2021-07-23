@@ -189,18 +189,6 @@ class User(object):
 
     # GETTERS
     ################################
-    def get_name(self):
-        return self.fullname
-
-    def get_email(self):
-        return self.email
-
-    def get_contacts(self):
-        return self.contacts
-
-    def get_pubkey(self):
-        return self.privkey.public_key()
-
     def get_pubkey_pem(self):
         return self.privkey.public_key().public_bytes(
             encoding=serialization.Encoding.PEM,

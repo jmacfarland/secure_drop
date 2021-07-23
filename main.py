@@ -30,7 +30,7 @@ def cmd_loop(acct):
         elif cmd == "add":
             acct.add_contact(input("Contact name: "), input("Contact email: "))
         elif cmd == "list":
-            for c in acct.get_contacts():
+            for c in acct.contacts:
                 print(c)
         elif cmd == "show":
             print(repr(acct))
