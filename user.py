@@ -13,11 +13,12 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 #from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 import os
 import base64
+
+from utils import make_encryptor, make_decryptor
 
 class User(object):
     def _debug(self, message):
@@ -43,8 +44,8 @@ class User(object):
         )
         self.contacts = {}
 
-        #not the best way to do it as the key is held in memory for the duration...
-        #but I don't want to have to enter password just to save changes
+        #precompute self-encryption key on register so user doesn't have to re-enter
+        #   password just to save changes at the end of a session
         kdf = Scrypt(
             salt=self.salt,
             length=32,
@@ -61,32 +62,6 @@ class User(object):
     def add_contact(self, email, pubkey):
         #self._debug("Adding contact %s: %s"%(email,pubkey))
         self.contacts[email] = pubkey
-
-    def _make_encryptor_session(self):
-        key = os.urandom(32)
-        iv = os.urandom(16)
-        cipher = Cipher(algorithms.AES(key), modes.CFB(iv))
-        return (cipher.encryptor(),
-            base64.b64encode(key).decode(),
-            base64.b64encode(iv).decode())
-
-    def send_symmetric(self, encryptor, message):
-        return encryptor.update(message) + encryptor.finalize()
-
-    def _make_decryptor_session(self, key, iv):
-        cipher = Cipher(
-            algorithms.AES(
-                base64.b64decode(key.encode())
-            ),
-            modes.CFB(
-                base64.b64decode(iv.encode())
-            )
-        )
-        return cipher.decryptor()
-
-    def recv_symmetric(self, decryptor, message_cipher):
-        msg = decryptor.update(message_cipher) + decryptor.finalize()
-        return msg
 
     def sign(self, message):
         #returns signature of the message, b64e, str
@@ -114,7 +89,6 @@ class User(object):
             ),
             hashes.SHA256()
         )
-
 
     def send_asymmetric(self, email, message):
         #MESSAGE must be bytes
@@ -156,10 +130,10 @@ class User(object):
     ########################
     def encrypt(self):
         data = {}
-
         data["secret"] = base64.b64encode(
             self.f.encrypt(
-                repr(self).encode())).decode()
+                repr(self).encode())
+            ).decode()
         data["salt"] = base64.b64encode(self.salt).decode()
         return json.dumps(data)
 
@@ -173,11 +147,22 @@ class User(object):
             p=1,
         )
         key = kdf.derive(getpass.getpass().encode())
+        #derive and attach self-encryption key to the User object, so user doesn't have
+        #   to re-enter password just to save changes.
+        #   I realize this is less secure, since an attacker with the ability to spy
+        #   on this program's memory-space would be able to grab the decryption key,
+        #   BUT- if they can do that, they can already grab all of the data that the
+        #   key could decrypt, so it's kinda moot I think...
+        #       UNLESS I add per-message derivation of the private key, but that's
+        #       waaaay too many layers for me to consider right now
         self.f = Fernet(base64.urlsafe_b64encode(key))
         return json.loads(
             self.f.decrypt(
                 base64.b64decode(
-                    data["secret"])))
+                    data["secret"]
+                )
+            )
+        )
 
     # FILE IO
     ################################

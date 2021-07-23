@@ -1,6 +1,6 @@
 #! /usr/bin/env python3
 from user import User
-#from utils import read_in_chunks
+from utils import make_encryptor, make_decryptor
 import json
 import hashlib
 import unittest
@@ -38,28 +38,29 @@ class EncryptionTest(unittest.TestCase):
         self.assertEqual(len(msg_plain), len(msg_orig), "messages not the same length")
 
     def test_send_symmetric_msg(self):
-        s1, key1, iv1 = self.one._make_encryptor_session()
+        s1, key1, iv1 = make_encryptor()
         keyinfo = json.dumps({"key":key1, "iv":iv1}).encode()
         ct = self.one.send_asymmetric("two@test.com",keyinfo)
 
         pt, sig = self.two.recv_asymmetric(ct) #pt == plaintext
         self.assertEqual(pt, keyinfo, "keyinfo was not as expected")
         data = json.loads(pt.decode())
-        s2 = self.two._make_decryptor_session(data['key'], data['iv'])
+        s2 = make_decryptor(data['key'], data['iv'])
 
         msg_orig = b'a secret message'
-        msg_cipher = self.one.send_symmetric(s1, msg_orig)
-        self.assertEqual(self.two.recv_symmetric(s2, msg_cipher), msg_orig)
+        msg_cipher = s1.update(msg_orig) + s1.finalize()
+        msg_plain = s2.update(msg_cipher) + s2.finalize()
+        self.assertEqual(msg_plain, msg_orig)
 
     def test_sendfile(self):
-        s1, key1, iv1 = self.one._make_encryptor_session()
+        s1, key1, iv1 = make_encryptor()
         ct = self.one.send_asymmetric("two@test.com",
             json.dumps({"key":key1, "iv":iv1}).encode()
         )
 
         pt, sig = self.two.recv_asymmetric(ct)
         data = json.loads(pt.decode())
-        s2 = self.two._make_decryptor_session(data['key'], data['iv'])
+        s2 = make_decryptor(data['key'], data['iv'])
 
         #########################
         testfile = "text/text_64k.txt"
@@ -67,7 +68,7 @@ class EncryptionTest(unittest.TestCase):
         plain = file.read()
         file.close()
         expected_hash = get_digest(testfile)
-        cipher = self.one.send_symmetric(s1, plain)
+        cipher = s1.update(plain) + s1.finalize()
         self.assertEqual(len(plain), len(cipher), "cipher and plain were not the same size!")
         '''
         Thoughts on protocol:
@@ -77,7 +78,7 @@ class EncryptionTest(unittest.TestCase):
         - send messagelen as first (8?) bytes of symmetric stream, then
             - client recv's messagelen
         '''
-        plain2 = self.two.recv_symmetric(s2, cipher)
+        plain2 = s2.update(cipher) + s2.finalize()
         outfile = "text/tmp.txt"
         out = open(outfile, "wb")
         out.write(plain2)
