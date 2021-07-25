@@ -7,6 +7,9 @@ import hashlib
 import unittest
 
 def get_digest(file_path):
+    '''
+    get SHA256 digest of file for integrity purposes
+    '''
     h = hashlib.sha256()
 
     with open(file_path, 'rb') as file:
@@ -33,6 +36,9 @@ class EncryptionTest(unittest.TestCase):
         self.one.add_contact("two@test.com", pubkey_two)
 
     def test_send_asymmetric_msg(self):
+        '''
+        Test of sending arbitrary message encrypted using recipient's pubkey
+        '''
         msg_orig = b'test'*10
         msg_cipher = self.one.send_asymmetric("two@test.com",msg_orig)
         msg_plain, sig = self.two.recv_asymmetric(msg_cipher)
@@ -43,6 +49,10 @@ class EncryptionTest(unittest.TestCase):
         Test of using asymmetric encryption to send small message containing
         information to construct a symmetric encryption key, which can efficiently
         encrypt large amounts of data
+
+        verifies:
+            - symmetric keyinfo is received correctly
+            - message after symmetric decryption == message before symmetric encryption
         '''
         s1, key1, iv1 = make_encryptor()
         keyinfo = json.dumps({"key":key1, "iv":iv1}).encode()
