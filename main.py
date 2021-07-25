@@ -1,7 +1,8 @@
 #! /usr/bin/env python3
 from cryptography.fernet import InvalidToken as InvalidTokenError
 from user import User
-from session import Session
+from utils import make_encryptor, make_decryptor, get_digest, _make_server_socket
+import os
 import sys
 import json
 import socket
@@ -26,49 +27,67 @@ def cmd_loop(acct):
             print("---> add:  add a new contact")
             print("---> list: list all online contacts")
             print("---> send: send file to contact")
+            print("---> receive: listen for incoming connections")
             print("---> exit: exit")
         elif cmd == "add":
-            acct.add_contact(input("Contact name: "), input("Contact email: "))
+            acct.add_contact(input("Contact email: "), input("Contact pubkey: "))
         elif cmd == "list":
             for c in acct.contacts:
                 print(c)
+        elif cmd == "send":
+            recipient = input("File recipient: ")
+            if not (recipient in acct.contacts):
+                print("Error: recipient not in contacts")
+                continue
+            else:
+                filename = input("Filename: ")
+                try:
+                    sendfile(acct, recipient, file)
+                except:
+                    pass
         elif cmd == "show":
-            print(repr(acct))
+            print(acct.get_pubkey_pem())
     acct.save_to_file()
     exit(0)
 
-class Client():
-    def __init__(self, addr="localhost", port=10000):
+def sendfile(acct, recipient, file, addr=None, port=None, debug=False):
+    pt = json.dumps({
+        "peer":acct.email,
+        "file":file.split("/")[-1], #get filename without path
+        "hash":get_digest(file),
+        "size":os.path.getsize(file)
+    }).encode()
+    ct = acct.send_asymmetric(recipient,pt)
+    if debug:
+        print("PLAINTEXT:   {0}".format(pt))
+        print("CIPHERTEXT:  {0}".format(ct))
+        return
+
+    if not addr:
+        addr = input("host: ")
+    if not port:
+        port = int(input("port: "))
+    try:
         # Create a TCP/IP socket
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         # Bind the socket to the port
         server_address = (addr, port)
-        self.sock.connect(server_address)
-        # setup session encryption
-        self.session = Session()
-        print("Attempting handshake...")
-        self.handshake_client()
+        sock.connect(server_address)
 
-    def handshake_client(self):
-        print("Sending client public key...")
-        pubkey = self.session.send_pubkey()
-        self.sock.send(pubkey)
-        server_pubkey = self.sock.recv(len(pubkey))
-        if self.session.recv_pubkey(server_pubkey):
-            print("Handshake successful!")
-        else:
-            sys.exit(1)
+        sock.sendall(ct)
+    finally:
+        sock.close()
 
-    def send_msg(self, msg):
-        print("DEBUG: Client sending the following message: %s" % msg)
-        self.sock.sendall(self.session.send_msg(msg))
-
-    def recv_msg(self, data):
-        msg = self.session.recv_msg(data)
-        if msg:
-            print("DEBUG: Client receiving the following message:  %s" % msg)
-        else:
-            print("<message corrupted>")
+def recvfile(acct, addr="localhost", port=10000):
+    sock = _make_server_socket(addr, port)
+    try:
+        sock.listen()
+        connection, client_addr = sock.accept()
+        data = sock.recv(2048)
+        msg, sig = acct.recv_asymmetric(data)
+        print(msg)
+    finally:
+        sock.close()
 
 class Server():
     def __init__(self, addr="localhost", port=10000):
@@ -81,50 +100,7 @@ class Server():
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         print("Done creating server")
 
-    class ClientThread(threading.Thread):
-        def __init__(self, addr, sock):
-            threading.Thread.__init__(self)
-            self.sock = sock
-            self.addr = addr
-            self.session = Session()
-            print("\nNew connection added: ", self.addr)
-            print("Attempting handshake...")
-            self.handshake_server()
 
-        def handshake_server(self):
-            pubkey = self.session.send_pubkey()
-
-            # receive client's public key
-            client_pubkey = self.sock.recv(len(pubkey))
-
-            if self.session.recv_pubkey(client_pubkey):
-                print("Successfully received peer public key")
-            else:
-                sys.exit(1)
-
-            # send our public key
-            print("Sending server public key...")
-            self.sock.send(pubkey)
-
-            print("Handshake successful!")
-
-        def send_msg(self, msg):
-            print("DEBUG: Server sending the following message: %s" % msg)
-            self.sock.sendall(self.session.send_msg(msg))
-
-        def recv_msg(self, data):
-            msg = self.session.recv_msg(data)
-            if msg:
-                print("DEBUG: Server receiving the following message:  %s" % msg)
-            else:
-                print(data)
-                print("<message corrupted>")
-
-        def run(self):
-            while True:
-                data = self.sock.recv(256)
-                if data:
-                    self.recv_msg(data)
 
 
     def execute(self):

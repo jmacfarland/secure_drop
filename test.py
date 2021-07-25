@@ -1,6 +1,7 @@
 #! /usr/bin/env python3
 from user import User
 from utils import make_encryptor, make_decryptor
+from main import sendfile
 import json
 import hashlib
 import unittest
@@ -38,6 +39,11 @@ class EncryptionTest(unittest.TestCase):
         self.assertEqual(len(msg_plain), len(msg_orig), "messages not the same length")
 
     def test_send_symmetric_msg(self):
+        '''
+        Test of using asymmetric encryption to send small message containing
+        information to construct a symmetric encryption key, which can efficiently
+        encrypt large amounts of data
+        '''
         s1, key1, iv1 = make_encryptor()
         keyinfo = json.dumps({"key":key1, "iv":iv1}).encode()
         ct = self.one.send_asymmetric("two@test.com",keyinfo)
@@ -45,7 +51,7 @@ class EncryptionTest(unittest.TestCase):
         pt, sig = self.two.recv_asymmetric(ct) #pt == plaintext
         self.assertEqual(pt, keyinfo, "keyinfo was not as expected")
         data = json.loads(pt.decode())
-        s2 = make_decryptor(data['key'], data['iv'])
+        s2, _, _ = make_decryptor(data['key'], data['iv'])
 
         msg_orig = b'a secret message'
         msg_cipher = s1.update(msg_orig) + s1.finalize()
@@ -53,6 +59,11 @@ class EncryptionTest(unittest.TestCase):
         self.assertEqual(msg_plain, msg_orig)
 
     def test_sendfile(self):
+        '''
+        Test of encrypting large file (64KiB), to verify:
+            - size of plaintext == size of ciphertext
+            - hash of pre-encryption plaintext == hash of post-decryption plaintext
+        '''
         s1, key1, iv1 = make_encryptor()
         ct = self.one.send_asymmetric("two@test.com",
             json.dumps({"key":key1, "iv":iv1}).encode()
@@ -60,7 +71,7 @@ class EncryptionTest(unittest.TestCase):
 
         pt, sig = self.two.recv_asymmetric(ct)
         data = json.loads(pt.decode())
-        s2 = make_decryptor(data['key'], data['iv'])
+        s2, _, _ = make_decryptor(data['key'], data['iv'])
 
         #########################
         testfile = "text/text_64k.txt"
@@ -86,10 +97,25 @@ class EncryptionTest(unittest.TestCase):
         self.assertEqual(get_digest(outfile), expected_hash, "beginning and ending hashes differed!")
 
     def test_signature(self):
+        '''
+        Test of verifying received signature and message, against known
+        counterpart public key
+        '''
         msg_orig = b'testmessageplsignore'
         msg_cipher = self.one.send_asymmetric("two@test.com",msg_orig)
         msg_plain, signature = self.two.recv_asymmetric(msg_cipher)
         self.two.verify_signature("one@test.com", msg_plain, signature)
+
+    def test_network_sendfile(self):
+        '''
+        Test of (the easily testable part of) main/sendfile, which packs file
+        and identity info into a JSON string, encrypts it using the specified recipient's
+        public key, and signs the plaintext JSON string with the sender's private key..
+
+        Ideally this would also test the full path (send message using socket to the recipient)
+        but I am having some real trouble figuring out how to do that..
+        '''
+        sendfile(self.one, "two@test.com", "text/text_1k.txt", debug=True)
 
 if __name__ == '__main__':
     unittest.main()

@@ -23,7 +23,8 @@ from utils import make_encryptor, make_decryptor
 class User(object):
     def _debug(self, message):
         if self.debug:
-            print("%s: %s"%(self.email,message))
+            print(message)
+            #print("%s: %s"%(self.email,message))
 
     def register(self, fullname=None, email=None, debug=False):
         self.debug=debug
@@ -80,15 +81,21 @@ class User(object):
             self.contacts[email],
             backend=default_backend()
         )
-        key.verify(
-            base64.b64decode(signature),
-            message,
-            padding.PSS(
-                mgf=padding.MGF1(hashes.SHA256()),
-                salt_length=padding.PSS.MAX_LENGTH
-            ),
-            hashes.SHA256()
-        )
+        try:
+            key.verify(
+                base64.b64decode(signature),
+                message,
+                padding.PSS(
+                    mgf=padding.MGF1(hashes.SHA256()),
+                    salt_length=padding.PSS.MAX_LENGTH
+                ),
+                hashes.SHA256()
+            )
+            self._debug("Signature verification succeeded")
+        except:
+            self._debug("Signature verification failed!")
+            raise
+
 
     def send_asymmetric(self, email, message):
         #MESSAGE must be bytes
@@ -153,8 +160,6 @@ class User(object):
         #   on this program's memory-space would be able to grab the decryption key,
         #   BUT- if they can do that, they can already grab all of the data that the
         #   key could decrypt, so it's kinda moot I think...
-        #       UNLESS I add per-message derivation of the private key, but that's
-        #       waaaay too many layers for me to consider right now
         self.f = Fernet(base64.urlsafe_b64encode(key))
         return json.loads(
             self.f.decrypt(
