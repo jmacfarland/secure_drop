@@ -2,6 +2,12 @@
 from user import User
 from main import recvfile
 
+'''
+counterpart of test1.py.
+Should be run at the same time as test1, then plug in the provided
+publickey to this.. HIT ENTER ON THIS ONE FIRST!
+'''
+
 def main():
     acct = User()
     acct.register("one", "one@test.com", debug=True)

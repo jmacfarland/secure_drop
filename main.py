@@ -51,14 +51,18 @@ def cmd_loop(acct):
     exit(0)
 
 def sendfile(acct, recipient, file, addr=None, port=None, debug=False):
+    '''
+    Send recipient an encrypted file...
+    '''
     pt = json.dumps({
-        "peer":acct.email,
+        "peer":acct.email, #sender's email so recipient can look up our pubkey
         "file":file.split("/")[-1], #get filename without path
-        "hash":get_digest(file),
-        "size":os.path.getsize(file)
+        "hash":get_digest(file), #send filehash so recipient can verify the integrity of downloaded file
+        "size":os.path.getsize(file) #filesize so recipient can simply sock.recv(size)...
+        #because len(plain_file) == len(symmetrically_encrypted_file)
     }).encode()
-    ct = acct.send_asymmetric(recipient,pt)
-    if debug:
+    ct = acct.send_asymmetric(recipient,pt) #construct asymmetric message to recipient
+    if debug: #dumps pt/ct and skips trying to send the file over the network
         print("PLAINTEXT:   {0}".format(pt))
         print("CIPHERTEXT:  {0}".format(ct))
         return
@@ -75,6 +79,12 @@ def sendfile(acct, recipient, file, addr=None, port=None, debug=False):
         sock.connect(server_address)
 
         sock.sendall(ct)
+        #NOT DONE - needs to:
+        #wait for recipient to respond with symmetric keyinfo
+        #   verify msg signature to make sure it's the legitimate recipient
+        #construct symmetric cipher
+        #symmetrically encrypt file
+        #send the file
     finally:
         sock.close()
 
@@ -86,10 +96,20 @@ def recvfile(acct, addr="localhost", port=10000):
         data = sock.recv(2048)
         msg, sig = acct.recv_asymmetric(data)
         print(msg)
+        #NOT DONE- needs to:
+        #verify the signature
+        #construct a symmetric key
+        #asymmetrically encrypt symmetric keyinfo
+        #reply to give keyinfo to sender
+        #wait for sender to respond with symmetrically encrypted file
     finally:
         sock.close()
 
 class Server():
+    '''
+    I am in the process of cannibalizing this class into sendfile and recvfile
+    functions.
+    '''
     def __init__(self, addr="localhost", port=10000):
         print("Creating server...")
         # Create a TCP/IP socket
@@ -99,9 +119,6 @@ class Server():
         self.sock.bind(server_address)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         print("Done creating server")
-
-
-
 
     def execute(self):
         i = 0

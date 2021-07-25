@@ -21,6 +21,11 @@ import base64
 from utils import make_encryptor, make_decryptor
 
 class User(object):
+    '''
+    Main user class, comprising of all user-specific data storage, loading,
+    storage-encryption/decryption, and asymmetric encryption functionality.
+    Handles storing contact public keys, and verification of contact signatures.
+    '''
     def _debug(self, message):
         if self.debug:
             print(message)
@@ -65,7 +70,9 @@ class User(object):
         self.contacts[email] = pubkey
 
     def sign(self, message):
-        #returns signature of the message, b64e, str
+        '''
+        returns signature of the message, b64encoded, as a str
+        '''
         sig = self.privkey.sign(
             message,
             padding.PSS(
@@ -98,6 +105,20 @@ class User(object):
 
 
     def send_asymmetric(self, email, message):
+        '''
+        Takes:
+            - contact email
+            - message
+        Returns:
+            - JSON binary string containing:
+                - ciphertext of message, encrypted using contact's public key
+                - signature of PLAINTEXT using the user's private key
+
+            Would normally have signature of ciphertext IIRC, but I chose PT
+            because the user receiving the message won't know who sent it until
+            they decrypt it with their private key, so they cannot verify the
+            signature against a known pubkey until decryption
+        '''
         #MESSAGE must be bytes
         key = serialization.load_pem_public_key(
             self.contacts[email],
@@ -117,6 +138,9 @@ class User(object):
         }).encode()
 
     def recv_asymmetric(self, data):
+        '''
+        Decrypt data['message'], return that and data['signature']
+        '''
         data = json.loads(data.decode())
         #self._debug("RECV: " + str(data))
         message_cipher = base64.b64decode(data['message'].encode())
@@ -136,6 +160,9 @@ class User(object):
     #   SELF-FUNCTIONS
     ########################
     def encrypt(self):
+        '''
+        Provide an encrypted representation of the User object, ready for storage
+        '''
         data = {}
         data["secret"] = base64.b64encode(
             self.f.encrypt(
@@ -145,6 +172,9 @@ class User(object):
         return json.dumps(data)
 
     def decrypt(self,data):
+        '''
+        Try to decrypt the provided data using a user-provided password
+        '''
         self.salt = base64.b64decode(data["salt"].encode())
         kdf = Scrypt(
             salt=self.salt,
@@ -176,6 +206,10 @@ class User(object):
             outfile.write(str(self.encrypt()))
 
     def load_from_file(self, fname='user.txt'):
+        '''
+        Attempt to load, decrypt, and construct a User object from the provided
+        datafile
+        '''
         try:
             with open(fname, 'r') as infile:
                 data = json.loads(infile.read())
@@ -195,6 +229,10 @@ class User(object):
     # GETTERS
     ################################
     def get_pubkey_pem(self):
+        '''
+        Provide PEM encoded public key for portability, which others can use to
+        encrypt messages for the user
+        '''
         return self.privkey.public_key().public_bytes(
             encoding=serialization.Encoding.PEM,
             format=serialization.PublicFormat.SubjectPublicKeyInfo
