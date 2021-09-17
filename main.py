@@ -20,7 +20,7 @@ def main():
 
 def cmd_loop(acct):
     cmd = ''
-    print("Welcome to Secure Drop, {0}".format(acct.get_name()))
+    print("Welcome to Secure Drop, {0}".format(acct.fullname))
     while cmd != "exit":
         cmd = input('> ').lower()
         if cmd == "help":
@@ -47,6 +47,8 @@ def cmd_loop(acct):
                     pass
         elif cmd == "show":
             print(acct.get_pubkey_pem())
+            print(" ")
+            print(acct.__repr__())
     acct.save_to_file()
     exit(0)
 

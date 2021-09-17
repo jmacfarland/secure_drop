@@ -27,8 +27,8 @@ class User(object):
     Handles storing contact public keys, and verification of contact signatures.
     '''
     def _debug(self, message):
-        if self.debug:
-            print(message)
+        #if self.debug:
+        print(message)
             #print("%s: %s"%(self.email,message))
 
     def register(self, fullname=None, email=None, debug=False):
@@ -216,8 +216,9 @@ class User(object):
                 plain = self.decrypt(data)
                 self.fullname = plain['fullname']
                 self.email = plain['email']
+                #self._debug(plain['privkey'])
                 self.privkey = serialization.load_pem_private_key(
-                    plain['privkey'],
+                    data=plain['privkey'].encode(),
                     password=None,
                     backend=default_backend()
                 )
