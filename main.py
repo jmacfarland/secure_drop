@@ -1,7 +1,7 @@
 #! /usr/bin/env python3
 from cryptography.fernet import InvalidToken as InvalidTokenError
 from user import User
-from utils import make_encryptor, make_decryptor, get_digest, _make_server_socket, thread_debug
+from utils import make_encryptor, make_decryptor, get_digest, get_digest_no_read, _make_server_socket, thread_debug
 import os
 import sys
 import json
@@ -141,7 +141,10 @@ def recvfile(acct, addr="localhost", port=10000):
 
         #decrypt file
         pt = dec.update(buffer) + dec.finalize()
-        print(pt)
+        if metadata['hash'] != get_digest_no_read(pt):
+            print("File hashes did not match! discarding")
+        else:
+            print(pt)
     finally:
         sock.close()
 

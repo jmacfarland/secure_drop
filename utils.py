@@ -71,6 +71,11 @@ def get_digest(file_path):
         file.close()
     return h.hexdigest()
 
+def get_digest_no_read(pt):
+	h = hashlib.sha256()
+	h.update(pt)
+	return h.hexdigest()
+
 def _make_server_socket(addr="localhost", port=10000):
 	print("Creating server...")
 	# Create a TCP/IP socket
