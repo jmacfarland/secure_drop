@@ -2,11 +2,15 @@
 from cryptography.fernet import InvalidToken as InvalidTokenError
 from user import User
 from utils import make_encryptor, make_decryptor, get_digest, _make_server_socket
+from http.server import HTTPServer, BaseHTTPRequestHandler
 import os
 import sys
 import json
 import socket
-import threading
+from threading import Thread
+from queue import Queue
+
+userPubKey = None
 
 def main():
     u = User()
@@ -16,6 +20,14 @@ def main():
         print("Login failed.")
         exit(0)
 
+    #run HTTPServer
+    global userPubKey
+    userPubKey = u.get_pubkey_pem()
+    httpd = HTTPServer(('localhost', 8000), RequestHandler)
+    httpd.serve_forever()
+    print('Started HTTP server')
+
+    #drop to user command loop
     cmd_loop(u)
 
 def cmd_loop(acct):
@@ -107,37 +119,12 @@ def recvfile(acct, addr="localhost", port=10000):
     finally:
         sock.close()
 
-class Server():
-    '''
-    I am in the process of cannibalizing this class into sendfile and recvfile
-    functions.
-    '''
-    def __init__(self, addr="localhost", port=10000):
-        print("Creating server...")
-        # Create a TCP/IP socket
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        # Bind the socket to the port
-        server_address = (addr, port)
-        self.sock.bind(server_address)
-        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        print("Done creating server")
-
-    def execute(self):
-        i = 0
-        netThreads = []
-        print("Listening...")
-        try:
-            while True:
-                self.sock.listen(1)
-                connection, client_address = self.sock.accept()
-                netThreads.append(self.ClientThread(
-                    client_address, connection))
-                netThreads[i].start()
-                i += 1
-        finally:
-            for t in netThreads:
-                t.sock.close()
-
+class RequestHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        #get pubkey and user info
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(userPubKey) #write in serialized json, as b''
 
 if __name__ == "__main__":
     main()
