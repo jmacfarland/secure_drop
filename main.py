@@ -6,6 +6,7 @@ import os
 import sys
 import json
 import socket
+import datetime
 
 def main():
     u = User()
@@ -134,12 +135,13 @@ def recvfile(acct, addr="localhost", port=10000):
         connection.sendall(keyinfo_pt)
 
         #wait for sender to respond with symmetrically encrypted file
-        buffer = b''
-        while True:
-            data = connection.recv(2048)
-            if not data:
-                break
-            buffer += data
+        # buffer = b''
+        # while True:
+        #     data = connection.recv(2048)
+        #     if not data:
+        #         break
+        #     buffer += data
+        buffer = connection.recv(int(metadata['size']))
 
         #decrypt file
         pt = dec.update(buffer) + dec.finalize()

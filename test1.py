@@ -15,7 +15,7 @@ def main():
     acct.add_contact("two@test.com", "localhost", 8002)
     input("Press [ENTER] when ready...")
 
-    sendfile(acct, "two@test.com", "text/text_1k.txt", addr='localhost', port=10001)
+    sendfile(acct, "two@test.com", "text/text_64k.txt", addr='localhost', port=10001)
 
 if __name__ == "__main__":
     main()
