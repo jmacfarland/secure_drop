@@ -113,8 +113,10 @@ def recvfile(acct, addr="localhost", port=10000):
         msg, sig = acct.recv_asymmetric(data)
         metadata = json.loads(msg.decode())
         print(metadata)
-        #NOT DONE- needs to:
+
         #verify the signature
+        acct.verify_signature(metadata['peer'], msg, sig)
+
         #construct a symmetric key
         dec, key, iv = make_decryptor()
 
@@ -144,6 +146,7 @@ def recvfile(acct, addr="localhost", port=10000):
         if metadata['hash'] != get_digest_no_read(pt):
             print("File hashes did not match! discarding")
         else:
+            #save (print) the file
             print(pt)
     finally:
         sock.close()

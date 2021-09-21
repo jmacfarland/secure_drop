@@ -15,7 +15,7 @@ def main():
     input("Press [ENTER] when ready...")
     acct.add_contact("one@test.com", 'localhost', 8000)
 
-    recvfile(acct)
+    recvfile(acct, port=10001)
 
 if __name__ == "__main__":
     main()

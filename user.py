@@ -285,6 +285,7 @@ class User(object):
         })
 
 class RequestHandler(BaseHTTPRequestHandler):
+    #only for serving the user's public key
     def do_GET(self):
         #get pubkey and user info
         thread_debug(str(self.client_address) + " requested pubkey")
@@ -292,10 +293,10 @@ class RequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(userPubKey) #write in serialized json, as b''
 
-    def do_POST(self):
-        #receive encrypted message
-        content_length = int(self.headers['Content-Length'])
-        body = self.rfile.read(content_length)
-        thread_debug(str(self.client_address) + " POSTed " + body)
-        self.send_response(200)
-        self.end_headers()
+    # def do_POST(self):
+    #     #receive encrypted message
+    #     content_length = int(self.headers['Content-Length'])
+    #     body = self.rfile.read(content_length)
+    #     thread_debug(str(self.client_address) + " POSTed " + body)
+    #     self.send_response(200)
+    #     self.end_headers()
