@@ -61,6 +61,7 @@ class EncryptionTest(unittest.TestCase):
         pt, sig = self.two.recv_asymmetric(ct) #pt == plaintext
         self.assertEqual(pt, keyinfo, "keyinfo was not as expected")
         data = json.loads(pt.decode())
+
         s2, _, _ = make_decryptor(data['key'].encode(), data['iv'].encode())
 
         msg_orig = b'a secret message'

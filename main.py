@@ -132,7 +132,7 @@ def recvfile(acct, addr="localhost", port=10000):
         connection.sendall(keyinfo_pt)
 
         #wait for sender to respond with symmetrically encrypted file
-        buffer = ''
+        buffer = b''
         while True:
             data = connection.recv(2048)
             if not data:

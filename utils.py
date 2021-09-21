@@ -28,8 +28,12 @@ def make_encryptor(key=None, iv=None):
 	#	- IV
 	if not key:
 		key = os.urandom(32)
+	else:
+		key = base64.b64decode(key)
 	if not iv:
 		iv = os.urandom(16)
+	else:
+		iv = base64.b64decode(iv)
 	cipher = Cipher(algorithms.AES(key), modes.CFB(iv))
 	return (cipher.encryptor(),
 		base64.b64encode(key).decode(),
@@ -43,8 +47,12 @@ def make_decryptor(key=None, iv=None):
 	#	- IV
 	if not key:
 		key = os.urandom(32)
+	else:
+		key = base64.b64decode(key)
 	if not iv:
 		iv = os.urandom(16)
+	else:
+		iv = base64.b64decode(iv)
 	cipher = Cipher(algorithms.AES(key), modes.CFB(iv))
 	return (cipher.decryptor(),
 		base64.b64encode(key).decode(),
