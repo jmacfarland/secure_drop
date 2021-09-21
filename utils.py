@@ -45,15 +45,10 @@ def make_decryptor(key=None, iv=None):
 		key = os.urandom(32)
 	if not iv:
 		iv = os.urandom(16)
-	cipher = Cipher(
-		algorithms.AES(
-			base64.b64decode(key.encode())
-		),
-		modes.CFB(
-			base64.b64decode(iv.encode())
-		)
-	)
-	return cipher.decryptor(), key, iv
+	cipher = Cipher(algorithms.AES(key), modes.CFB(iv))
+	return (cipher.decryptor(),
+		base64.b64encode(key).decode(),
+		base64.b64encode(iv).decode())
 
 def get_digest(file_path):
     h = hashlib.sha256()

@@ -30,10 +30,10 @@ class EncryptionTest(unittest.TestCase):
         self.two = User()
         self.two.register("two", "two@test.com", debug=True)
         pubkey_one = self.one.get_pubkey_pem()
-        self.two.add_contact("one@test.com", pubkey_one)
+        self.two.add_contact("one@test.com", pubkey=pubkey_one)
 
         pubkey_two = self.two.get_pubkey_pem()
-        self.one.add_contact("two@test.com", pubkey_two)
+        self.one.add_contact("two@test.com", pubkey=pubkey_two)
 
     def test_send_asymmetric_msg(self):
         '''
@@ -61,7 +61,7 @@ class EncryptionTest(unittest.TestCase):
         pt, sig = self.two.recv_asymmetric(ct) #pt == plaintext
         self.assertEqual(pt, keyinfo, "keyinfo was not as expected")
         data = json.loads(pt.decode())
-        s2, _, _ = make_decryptor(data['key'], data['iv'])
+        s2, _, _ = make_decryptor(data['key'].encode(), data['iv'].encode())
 
         msg_orig = b'a secret message'
         msg_cipher = s1.update(msg_orig) + s1.finalize()

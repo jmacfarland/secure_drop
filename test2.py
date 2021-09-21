@@ -11,8 +11,9 @@ publickey to this.. HIT ENTER ON THIS ONE FIRST!
 def main():
     acct = User()
     acct.register("one", "one@test.com", debug=True)
-    print(acct.get_pubkey_pem())
-    acct.add_contact("one@test.com", input("one's pubkey: ").encode())
+    acct.runserver('localhost', 8002)
+    input("Press [ENTER] when ready...")
+    acct.add_contact("one@test.com", 'localhost', 8000)
 
     recvfile(acct)
 

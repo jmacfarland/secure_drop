@@ -1,16 +1,11 @@
 #! /usr/bin/env python3
 from cryptography.fernet import InvalidToken as InvalidTokenError
 from user import User
-from utils import make_encryptor, make_decryptor, get_digest, _make_server_socket
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from utils import make_encryptor, make_decryptor, get_digest, _make_server_socket, thread_debug
 import os
 import sys
 import json
 import socket
-from threading import Thread
-from queue import Queue
-
-userPubKey = None
 
 def main():
     u = User()
@@ -20,14 +15,8 @@ def main():
         print("Login failed.")
         exit(0)
 
-    #run HTTPServer
-    global userPubKey
-    userPubKey = u.get_pubkey_pem()
-    httpd = HTTPServer(('localhost', 8000), RequestHandler)
-    httpd.serve_forever()
-    print('Started HTTP server')
-
     #drop to user command loop
+    u.runserver('localhost', 8000)
     cmd_loop(u)
 
 def cmd_loop(acct):
@@ -42,7 +31,7 @@ def cmd_loop(acct):
             print("---> receive: listen for incoming connections")
             print("---> exit: exit")
         elif cmd == "add":
-            acct.add_contact(input("Contact email: "), input("Contact pubkey: "))
+            acct.add_contact(input("Contact email: "), input("Contact server address: "), input("Contact server port: "))
         elif cmd == "list":
             for c in acct.contacts:
                 print(c)
@@ -91,14 +80,26 @@ def sendfile(acct, recipient, file, addr=None, port=None, debug=False):
         # Bind the socket to the port
         server_address = (addr, port)
         sock.connect(server_address)
-
         sock.sendall(ct)
-        #NOT DONE - needs to:
+
         #wait for recipient to respond with symmetric keyinfo
-        #   verify msg signature to make sure it's the legitimate recipient
+        data = json.loads(
+            sock.recv(2048).decode()
+        )
+        print(data)
+
+
         #construct symmetric cipher
+        enc, _, _ = make_encryptor(data['key'], data['iv'])
+
         #symmetrically encrypt file
+        file = open(file, "rb")
+        file_pt = file.read()
+        file.close()
+        file_ct = enc.update(file_pt) + enc.finalize()
+
         #send the file
+        sock.sendall(file_ct)
     finally:
         sock.close()
 
@@ -107,24 +108,42 @@ def recvfile(acct, addr="localhost", port=10000):
     try:
         sock.listen()
         connection, client_addr = sock.accept()
-        data = sock.recv(2048)
+        print(client_addr)
+        data = connection.recv(2048)
         msg, sig = acct.recv_asymmetric(data)
-        print(msg)
+        metadata = json.loads(msg.decode())
+        print(metadata)
         #NOT DONE- needs to:
         #verify the signature
         #construct a symmetric key
+        dec, key, iv = make_decryptor()
+
         #asymmetrically encrypt symmetric keyinfo
+        keyinfo_pt = json.dumps({
+            "key": key,
+            "iv": iv
+        }).encode()
+        keyinfo_ct = acct.send_asymmetric(
+            email=metadata['peer'],
+            message=keyinfo_pt
+        )
+
         #reply to give keyinfo to sender
+        connection.sendall(keyinfo_pt)
+
         #wait for sender to respond with symmetrically encrypted file
+        buffer = ''
+        while True:
+            data = connection.recv(2048)
+            if not data:
+                break
+            buffer += data
+
+        #decrypt file
+        pt = dec.update(buffer) + dec.finalize()
+        print(pt)
     finally:
         sock.close()
-
-class RequestHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        #get pubkey and user info
-        self.send_response(200)
-        self.end_headers()
-        self.wfile.write(userPubKey) #write in serialized json, as b''
 
 if __name__ == "__main__":
     main()

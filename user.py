@@ -4,6 +4,12 @@
 import json
 import crypt
 import getpass
+
+from urllib import request
+from http.server import HTTPServer, BaseHTTPRequestHandler
+from threading import Thread
+from utils import thread_debug
+
 from cryptography.hazmat.primitives import padding as padding_sym
 from hmac import compare_digest as compare_hash
 from cryptography.fernet import Fernet
@@ -20,6 +26,12 @@ import base64
 
 from utils import make_encryptor, make_decryptor
 
+userPubKey = None
+
+def start_server(host, port):
+    httpd = HTTPServer((host, port), RequestHandler)
+    httpd.serve_forever()
+
 class User(object):
     '''
     Main user class, comprising of all user-specific data storage, loading,
@@ -30,6 +42,18 @@ class User(object):
         #if self.debug:
         print(message)
             #print("%s: %s"%(self.email,message))
+
+    def runserver(self, host, port):
+        #run HTTPServer
+        global userPubKey
+        userPubKey = self.get_pubkey_pem()
+
+        daemon = Thread(name="daemon_server",
+                        target=start_server,
+                        args=(host, port))
+        daemon.setDaemon(True)
+        daemon.start()
+        print('Started HTTP server on port {}'.format(port))
 
     def register(self, fullname=None, email=None, debug=False):
         self.debug=debug
@@ -65,8 +89,11 @@ class User(object):
             key = kdf.derive("test".encode())
         self.f = Fernet(base64.urlsafe_b64encode(key))
 
-    def add_contact(self, email, pubkey):
-        #self._debug("Adding contact %s: %s"%(email,pubkey))
+    def add_contact(self, email, host=None, port=None, pubkey=None):
+        #calling this with pubkey should be for testing only
+        if not pubkey:
+            #get contact's pubkey
+            pubkey = request.urlopen("http://{}:{}".format(host, port)).read()
         self.contacts[email] = pubkey
 
     def sign(self, message):
@@ -227,6 +254,10 @@ class User(object):
             self.register()
             self.save_to_file()
 
+        #make user's pub key available to the HTTP server
+        global userPubKey
+        userPubKey = self.get_pubkey_pem()
+
     # GETTERS
     ################################
     def get_pubkey_pem(self):
@@ -253,8 +284,18 @@ class User(object):
             "contacts":self.contacts
         })
 
-if __name__ == "__main__":
-    b = User()
-    print(b.load_from_file())
+class RequestHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        #get pubkey and user info
+        thread_debug(str(self.client_address) + " requested pubkey")
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(userPubKey) #write in serialized json, as b''
 
-    print(repr(b))
+    def do_POST(self):
+        #receive encrypted message
+        content_length = int(self.headers['Content-Length'])
+        body = self.rfile.read(content_length)
+        thread_debug(str(self.client_address) + " POSTed " + body)
+        self.send_response(200)
+        self.end_headers()
