@@ -47,7 +47,7 @@ class User(object):
         #run HTTPServer
         global userPubKey
         userPubKey = self.get_pubkey_pem()
-
+        print('Starting pubkey server...')
         daemon = Thread(name="daemon_server",
                         target=start_server,
                         args=(host, port))
@@ -167,6 +167,7 @@ class User(object):
     def recv_asymmetric(self, data):
         '''
         Decrypt data['message'], return that and data['signature']
+        Expects message encrypted using current user's public key
         '''
         data = json.loads(data.decode())
         #self._debug("RECV: " + str(data))
@@ -254,7 +255,8 @@ class User(object):
             self.register()
             self.save_to_file()
 
-        #make user's pub key available to the HTTP server
+        #make user's pub key available to the HTTP server...
+        #global is not ideal, but since it's just the public key it's not a HUGE issue
         global userPubKey
         userPubKey = self.get_pubkey_pem()
 
@@ -293,6 +295,9 @@ class RequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(userPubKey) #write in serialized json, as b''
 
+    #ideally we would have this POST handler receive the encrypted transmissions
+    #   and pass them to the user object for decryption... but I switched to this
+    #   model too late to make the necessary changes for that
     # def do_POST(self):
     #     #receive encrypted message
     #     content_length = int(self.headers['Content-Length'])

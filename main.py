@@ -48,6 +48,7 @@ def cmd_loop(acct):
                 except:
                     pass
         elif cmd == "show":
+            #present for testing, to dump all info
             print(acct.get_pubkey_pem())
             print(" ")
             print(acct.__repr__())
@@ -57,6 +58,7 @@ def cmd_loop(acct):
 def sendfile(acct, recipient, file, addr=None, port=None, debug=False):
     '''
     Send recipient an encrypted file...
+    Expects recipient to be present in contacts
     '''
     pt = json.dumps({
         "peer":acct.email, #sender's email so recipient can look up our pubkey
